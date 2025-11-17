@@ -5,7 +5,8 @@ from tdoa import classify
 recordings_path = "./Finished recordings/"
 files = ["recording-beacon-50cm.wav", "recording-beacon-50cm2.wav", "recording-beacon-50cm3.wav", "recording-beacon-50cm4.wav",
          "recording-beacon-100cm.wav", "recording-beacon-100cm2.wav", "recording-beacon-100cm3.wav", "recording-beacon-100cm4.wav"]
-peak_detection_methods = ["abs", "absreal", "abssign","real"]
+start_detection_methods = ["abs", "absreal", "abssign","real"]
+peak_detection_methods = ["abs", "absreal", "real"]
 
 # Get results
 good_pairs = []
@@ -15,14 +16,16 @@ for file in files:
     print(f"Processing {file}...")
     for peak_detection_method in peak_detection_methods:
         print(f"  Using peak detection method: {peak_detection_method}")
-        reasonable_options = find_optimum_tdoa_ch2(file=file, recordings_path=recordings_path, Lhat_bounds = (2000, 2000, 1), start_threshold_bounds = (0.001, 0.45, 400), peak_detection_method=peak_detection_method)
-        if len(reasonable_options) == 0:
-            nothing_found.append((file, peak_detection_method))
-        print(f"{len(reasonable_options)} reasonable options for {file}")
-        results.append((file, reasonable_options))
-        for option in reasonable_options:
-            option[-1].params['pdm'] = peak_detection_method
-            good_pairs.append((file, option[-1].params, option[-1].errorcm, option[-1].file_name))
+        for start_detection_method in start_detection_methods:
+            print(f"  Using start detection method: {start_detection_method}")
+            reasonable_options = find_optimum_tdoa_ch2(file=file, recordings_path=recordings_path, Lhat_bounds = (2000, 2000, 1), start_threshold_bounds = (0.001, 0.45, 400), peak_detection_method=peak_detection_method, start_detection_method=start_detection_method)
+            if len(reasonable_options) == 0:
+                nothing_found.append((file, peak_detection_method))
+            print(f"{len(reasonable_options)} reasonable options for {file}")
+            results.append((file, reasonable_options))
+            for option in reasonable_options:
+                option[-1].params['pdm'] = peak_detection_method
+                good_pairs.append((file, option[-1].params, option[-1].errorcm, option[-1].file_name))
     
 correct_pairs = {}
 
@@ -47,9 +50,11 @@ if max_count < len(files) - len(nothing_found):
     print("WARNING: No params found that work for all files with reasonable results.")
 else:
     print(f"INFO: Found params that work for {max_count} files.")
+    
+no_solutions = list(set(files) - set(file for data in correct_pairs.values() for file in data['file'] if data['count'] == max_count))
 
 print("Files with no good result:")
-for file in nothing_found:
+for file in no_solutions:
     print(f"  - {file}")
     
 
@@ -69,6 +74,12 @@ with open("best_ch2_params.txt", "w") as f:
         f.write("WARNING: No params found that work for all files with reasonable results.\n")
     else:
         f.write(f"INFO: Found params that work for {max_count} files.\n")
+        
+    f.write("Files with no good result:\n")
+    for file in no_solutions:
+        print(f"  - {file}\n")
+        
+    
     f.write("\n")
     f.write("\n\nFiles with no good result:\n")
     for file in nothing_found:

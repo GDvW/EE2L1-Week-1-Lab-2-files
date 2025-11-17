@@ -25,11 +25,11 @@ def tdoa_prepare_x(x, start_threshold=0.15):
     x = np.array(x[start_signal:end_signal+1])
     return x
 
-def tdoa(x, y, Lhat, method='ch2', epsi=0.001, Fs_RX = 48000, start_threshold = 0.15, file="", peak_detection_method="abs"):
+def tdoa(x, y, Lhat, method='ch2', epsi=0.001, Fs_RX = 48000, start_threshold = 0.15, file="", start_detection_method="abs", peak_detection_method="abs"):
     data = np.array(y)
     y_near = data[:,0]
     y_far = data[:,1]
-    match peak_detection_method:
+    match start_detection_method:
         case "abs":
             cond = np.abs(y_near) > start_threshold
         case "absreal":
@@ -39,10 +39,18 @@ def tdoa(x, y, Lhat, method='ch2', epsi=0.001, Fs_RX = 48000, start_threshold = 
         case "abssign":
             cond = (np.abs(y_near) > start_threshold) & (np.real(y_near) >= 0)
         case _:
-            raise ValueError("peak_detection_method must be either 'abs', 'absreal', 'abssign' or 'real'.")
-    start_response = np.where(cond)[0][0]
+            raise ValueError("start_detection_method must be either 'abs', 'absreal', 'abssign' or 'real'.")
+    try:
+        start_response = np.where(cond)[0][0]
+    except IndexError:
+        print(f"CRITICAL: No start found for file {file} with start_detection_method {start_detection_method} and start_threshold {start_threshold}.")
+        print(y_near[:10])
+        print(np.any(cond))
+        raise ValueError("No start found in the signal.")
+        return Distance(-1000000000000000000000000000, Fs_RX, file, method, params={})
     y_near = y_near[start_response:]
     y_far = y_far[start_response:]
+
     if method == 'ch2':
         h_near: np.ndarray = ch2(x, y_near, Lhat)
         h_far: np.ndarray = ch2(x, y_far, Lhat)
@@ -51,10 +59,18 @@ def tdoa(x, y, Lhat, method='ch2', epsi=0.001, Fs_RX = 48000, start_threshold = 
         h_far: np.ndarray = ch3(x, y_far, Lhat, epsi)
     else:
         raise ValueError("Method must be either 'ch2' or 'ch3'.")
-    
-    peak_near_t = np.argmax(np.real(h_near))/Fs_RX
-    peak_far_t = np.argmax(np.real(h_far))/Fs_RX
-    
+    match peak_detection_method:
+        case "abs":
+            pdm = lambda z: np.abs(z)
+        case "absreal":
+            pdm = lambda z: np.abs(np.real(z))
+        case "real":
+            pdm = lambda z: np.real(z)
+        case _:
+            raise ValueError("peak_detection_method must be either 'abs', 'absreal' or 'real'.")
+    peak_near_t = np.argmax(pdm(h_near))/Fs_RX
+    peak_far_t = np.argmax(pdm(h_far))/Fs_RX
+
     dist = Distance(peak_far_t - peak_near_t, Fs_RX, file, method)
     
     return dist

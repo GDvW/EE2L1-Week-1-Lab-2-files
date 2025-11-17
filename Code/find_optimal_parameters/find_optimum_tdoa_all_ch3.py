@@ -6,10 +6,11 @@ if __name__ == "__main__":
     recordings_path = "./Finished recordings/"
     files = ["recording-beacon-50cm.wav", "recording-beacon-50cm2.wav", "recording-beacon-50cm3.wav", "recording-beacon-50cm4.wav",
            "recording-beacon-100cm.wav", "recording-beacon-100cm2.wav", "recording-beacon-100cm3.wav", "recording-beacon-100cm4.wav"]
-    peak_detection_methods = ["abs", "absreal", "abssign","real"]
+    start_detection_methods = ["abs", "absreal", "abssign","real"]
+    peak_detection_methods = ["abs", "absreal", "real"]
     # peak_detection_methods = ["abssign","real"]
 
-    nothing_found, results, good_pairs = run_parallel_processing(files, peak_detection_methods, recordings_path)   
+    nothing_found, results, good_pairs = run_parallel_processing(files, peak_detection_methods, start_detection_methods, recordings_path)   
     correct_pairs = {}
 
     print("Collecting best params...")
@@ -33,9 +34,10 @@ if __name__ == "__main__":
         print("WARNING: No params found that work for all files with reasonable results.")
     else:
         print(f"INFO: Found params that work for {max_count} files.")
+    no_solutions = list(set(files) - set(file for data in correct_pairs.values() for file in data['file'] if data['count'] == max_count))
 
     print("Files with no good result:")
-    for file in nothing_found:
+    for file in no_solutions:
         print(f"  - {file}")
         
 
@@ -57,7 +59,7 @@ if __name__ == "__main__":
             f.write(f"INFO: Found params that work for {max_count} files.\n")
         f.write("\n")
         f.write("\n\nFiles with no good result:\n")
-        for file in nothing_found:
+        for file in no_solutions:
             f.write(f"  - {file}\n")
         f.write("\n")
         

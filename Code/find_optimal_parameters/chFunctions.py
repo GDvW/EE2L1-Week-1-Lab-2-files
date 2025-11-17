@@ -18,12 +18,14 @@ def ch3(x,y,Lhat,epsi):
     # Zero padding
     x = np.pad(x, (0, len(y) - len(x)))
     # FFTs to find X[k] and Y[k]
-    Xk = np.array(fft(x, Lhat+100))
-    Yk = fft(y, Lhat+100)
+    Xk = fft(x, len(x)+len(y)-1)
+    Yk = fft(y, len(x)+len(y)-1)
     # Computation of H[k]
     # Set H[k]=0 where |X[k]| is smaller than a threshold
     # Fix any runtime warnings with a placeholder 1
-    Hk = np.where(np.abs(Xk) > epsi, Yk/np.where(np.abs(Xk) > epsi, Xk, 1), 0)
+    mask = np.abs(Xk) > epsi
+    denom = np.where(mask, Xk, 1)
+    Hk = np.where(mask, Yk / denom, 0)
     # IFFT to find h[n]
     h = ifft(Hk)
     # Truncation to length Lhat (optional and actually not recommended before you inspect the entire h)
